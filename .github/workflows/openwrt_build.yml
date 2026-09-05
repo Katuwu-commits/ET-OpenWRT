@@ -26,10 +26,11 @@ jobs:
           rm openwrt-imagebuilder-*.tar.xz
           mv openwrt-imagebuilder-* imagebuilder
 
-      - name: Build Custom Firmware Image with WireGuard & Fibocom FG360 Support
+      - name: List Available Profiles & Build Firmware Image
         run: |
           cd imagebuilder
-          make image PROFILE="generic" \
+          make info
+          make image \
           PACKAGES="luci \
           luci-proto-wireguard \
           wireguard-tools \
