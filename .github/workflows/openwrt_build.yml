@@ -23,6 +23,7 @@ jobs:
         run: |
           wget https://downloads.openwrt.org/releases/23.05.3/targets/mediatek/filogic/openwrt-imagebuilder-23.05.3-mediatek-filogic.Linux-x86_64.tar.xz
           tar -xf openwrt-imagebuilder-*.tar.xz
+          rm openwrt-imagebuilder-*.tar.xz
           mv openwrt-imagebuilder-* imagebuilder
 
       - name: Build Custom Firmware Image with WireGuard & Fibocom FG360 Support
