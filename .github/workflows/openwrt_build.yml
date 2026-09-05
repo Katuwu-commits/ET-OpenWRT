@@ -1,6 +1,9 @@
 name: Build OpenWrt for Arcadyan Meteor 2 (MediaTek T750 / FG360)
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
