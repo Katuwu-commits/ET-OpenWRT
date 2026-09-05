@@ -1,0 +1,44 @@
+name: Build OpenWrt for Arcadyan Meteor 2 (MediaTek T750 / FG360)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libncurses5-dev libncursesw5-dev \
+          zlib1g-dev gawk git gettext libssl-dev xsltproc wget unzip python3 file
+
+      - name: Download OpenWrt ImageBuilder for MediaTek T750
+        run: |
+          wget https://downloads.openwrt.org/releases/23.05.3/targets/mediatek/filogic/openwrt-imagebuilder-23.05.3-mediatek-filogic.Linux-x86_64.tar.xz
+          tar -xf openwrt-imagebuilder-*.tar.xz
+          mv openwrt-imagebuilder-* imagebuilder
+
+      - name: Build Custom Firmware Image with WireGuard & Fibocom FG360 Support
+        run: |
+          cd imagebuilder
+          make image PROFILE="generic" \
+          PACKAGES="luci \
+          luci-proto-wireguard \
+          wireguard-tools \
+          kmod-wireguard \
+          kmod-usb-net-rndis \
+          kmod-usb-net-cdc-ncm \
+          modemmanager \
+          luci-proto-modemmanager \
+          qmi-utils \
+          comgt-ncm"
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Arcadyan-Meteor2-OpenWrt-WireGuard
+          path: imagebuilder/bin/targets/mediatek/filogic/*.bin
