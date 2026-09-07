@@ -1,0 +1,66 @@
+name: Full OpenWrt Source Build for Arcadyan Meteor 2 (MediaTek T750 / FG360)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential ccache ecj fastjar file g++ gawk \
+          gettext git java-propose-classpath libelf-dev libncurses5-dev \
+          libncursesw5-dev libssl-dev python3 python3-distutils python3-setuptools \
+          rsync subversion swig time u-boot-tools unzip wget xsltproc zlib1g-dev
+
+      - name: Clone OpenWrt Source Code
+        run: |
+          git clone https://github.com/openwrt/openwrt.git -b openwrt-23.05 openwrt_src
+          cd openwrt_src
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Create Custom Hardware & Package Configuration
+        run: |
+          cd openwrt_src
+          cat << 'EOF' > .config
+          CONFIG_TARGET_mediatek=y
+          CONFIG_TARGET_mediatek_filogic=y
+          CONFIG_TARGET_MULTI_PROFILE=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-proto-wireguard=y
+          CONFIG_PACKAGE_wireguard-tools=y
+          CONFIG_PACKAGE_kmod-wireguard=y
+          CONFIG_PACKAGE_kmod-usb-net-rndis=y
+          CONFIG_PACKAGE_kmod-usb-net-cdc-ncm=y
+          CONFIG_PACKAGE_modemmanager=y
+          CONFIG_PACKAGE_luci-proto-modemmanager=y
+          CONFIG_PACKAGE_qmi-utils=y
+          CONFIG_PACKAGE_comgt-ncm=y
+          EOF
+          make defconfig
+
+      - name: Compile OpenWrt Firmware from Source
+        run: |
+          cd openwrt_src
+          make download -j$(nproc)
+          make -j$(nproc) V=s || make -j1 V=s
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Arcadyan-Meteor2-OpenWrt-Source-Build
+          path: openwrt_src/bin/targets/mediatek/filogic/*.bin
