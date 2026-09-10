@@ -28,22 +28,31 @@ jobs:
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
 
-      - name: Clone MediaTek T750 LK OpenWrt Source
+      - name: Clone Latest OpenWrt Source & Overlay MT6890 Target Patches
         run: |
-          git clone --depth 1 https://github.com/linjunyidesign/fiberhome-lg6121f-openwrt.git openwrt
+          # 1. Clone latest OpenWrt source tree (main branch)
+          echo "Cloning latest OpenWrt source tree (main)..."
+          git clone --depth 1 https://github.com/openwrt/openwrt.git openwrt
 
-      - name: Inject Arcadyan DTS & Configure LK Device Rules
-        run: |
+          # 2. Clone MT6890 / T750 target patch repository
+          echo "Cloning MT6890 target patches..."
+          git clone --depth 1 https://github.com/linjunyidesign/fiberhome-lg6121f-openwrt.git patch_repo
+
+          # 3. Overlay MT6890 target subtarget, patches, and image rules onto OpenWrt
+          echo "Overlaying MT6890 subtarget onto OpenWrt..."
+          cp -r patch_repo/target/linux/mediatek/* openwrt/target/linux/mediatek/
+
           cd openwrt
-          
-          # 1. Copy user's exact committed DTS from repo dts/ folder
-          echo "Injecting user's mt6890-arcadyan-meteor-2.dts into target/linux/mediatek/dts/..."
+
+          # 4. Inject user's committed Arcadyan DTS file
+          echo "Injecting user's mt6890-arcadyan-meteor-2.dts..."
           cp ../dts/mt6890-arcadyan-meteor-2.dts target/linux/mediatek/dts/mt6890-arcadyan-meteor-2.dts
 
-          # 2. Append Device/arcadyan_meteor-2 definition to mt6890.mk with LK bootimage support
+          # 5. Append Device/arcadyan_meteor-2 to mt6890.mk
           MK_FILE="target/linux/mediatek/image/mt6890.mk"
-          echo "Appending Device/arcadyan_meteor-2 to $MK_FILE..."
-          cat <<'EOF' >> $MK_FILE
+          if [ -f "$MK_FILE" ]; then
+            echo "Appending Device/arcadyan_meteor-2 to $MK_FILE..."
+            cat <<'EOF' >> $MK_FILE
 
 define Device/arcadyan_meteor-2
   DEVICE_VENDOR := Arcadyan
@@ -68,8 +77,12 @@ define Device/arcadyan_meteor-2
 endef
 TARGET_DEVICES += arcadyan_meteor-2
 EOF
+          else
+            echo "ERROR: $MK_FILE not found after overlay!"
+            exit 1
+          fi
 
-          # 3. Update & Install Feeds
+          # 6. Update & Install Feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
@@ -112,7 +125,7 @@ EOF
         run: |
           cd openwrt
           mkdir -p bin_output
-          find bin/targets/ -type f \( -name "*.img" -o -name "*.bin" -o -name "*.tar.gz" -o -name "manifest*" \) -exec cp {} bin_output/ \;
+          find bin/targets/ -type f \( -name "*arcadyan*" -o -name "*mt6890*" -o -name "*.img" -o -name "*.bin" -o -name "*.tar.gz" -o -name "manifest*" \) -exec cp {} bin_output/ \;
           echo "Firmware files built successfully:"
           ls -la bin_output/
 
