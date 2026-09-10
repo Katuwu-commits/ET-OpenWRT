@@ -32,19 +32,32 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/linjunyidesign/fiberhome-lg6121f-openwrt.git openwrt
 
-      - name: Inject Arcadyan DTS & Device Definitions
+      - name: Inject Arcadyan DTS & Image Build Rules
         run: |
           cd openwrt
           
-          # Copy custom DTS file if provided in dts/ folder
+          # 1. Copy custom DTS file from dts/ folder
           if [ -f "../dts/mt6890-arcadyan-meteor-2.dts" ]; then
             echo "Injecting custom Arcadyan Meteor 2 DTS..."
             cp ../dts/mt6890-arcadyan-meteor-2.dts target/linux/mediatek/dts/mt6890-arcadyan-meteor-2.dts
-          else
-            echo "No custom DTS found in dts/ directory. Using default MT6890 DTS template."
           fi
 
-          # Update feeds
+          # 2. Append Arcadyan Meteor 2 Device Target to Image Makefile
+          MK_FILE=$(find target/linux/mediatek/image/ -name "*.mk" | head -n 1)
+          echo "Injecting device definition into $MK_FILE..."
+          cat <<'EOF' >> $MK_FILE
+
+define Device/arcadyan_meteor-2
+  DEVICE_VENDOR := Arcadyan
+  DEVICE_MODEL := Meteor 2 5G CPE
+  DEVICE_DTS := mt6890-arcadyan-meteor-2
+  SUPPORTED_DEVICES := arcadyan,meteor-2
+  DEVICE_PACKAGES := kmod-usb-net-mbim kmod-usb-serial-option modemmanager luci-proto-modemmanager kmod-crypto-hw-safexcel wpad-basic-mbedtls wireguard-tools luci-proto-wireguard
+endef
+TARGET_DEVICES += arcadyan_meteor-2
+EOF
+
+          # 3. Update & Install Feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
@@ -54,7 +67,7 @@ jobs:
           cat <<EOF > .config
           CONFIG_TARGET_mediatek=y
           CONFIG_TARGET_mediatek_mt6890=y
-          CONFIG_TARGET_MULTI_PROFILE=y
+          CONFIG_TARGET_DEVICE_mediatek_mt6890_DEVICE_arcadyan_meteor-2=y
           CONFIG_PACKAGE_luci=y
           CONFIG_PACKAGE_kmod-usb-net-mbim=y
           CONFIG_PACKAGE_kmod-usb-serial-option=y
@@ -77,14 +90,14 @@ jobs:
       - name: Compile OpenWrt Firmware
         run: |
           cd openwrt
-          echo "Building OpenWrt image with $(nproc) threads..."
+          echo "Building OpenWrt image for Arcadyan Meteor 2..."
           make -j$(nproc) V=s || make -j1 V=s
 
       - name: Organize Firmware Output
         run: |
           cd openwrt
           mkdir -p bin_output
-          find bin/targets/ -type f \( -name "*.bin" -o -name "*.img" -o -name "*.tar.gz" -o -name "manifest*" \) -exec cp {} bin_output/ \;
+          find bin/targets/ -type f \( -name "*arcadyan*" -o -name "*.bin" -o -name "*.img" -o -name "*.tar.gz" -o -name "manifest*" \) -exec cp {} bin_output/ \;
           echo "Firmware files built successfully:"
           ls -la bin_output/
 
