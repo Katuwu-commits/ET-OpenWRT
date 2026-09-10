@@ -52,7 +52,7 @@ define Device/arcadyan_meteor-2
   DEVICE_MODEL := Meteor 2 5G CPE
   DEVICE_DTS := mt6890-arcadyan-meteor-2
   SUPPORTED_DEVICES := arcadyan,meteor-2
-  DEVICE_PACKAGES := kmod-usb-net-mbim kmod-usb-serial-option modemmanager luci-proto-modemmanager kmod-crypto-hw-safexcel wpad-basic-mbedtls wireguard-tools luci-proto-wireguard
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt76 mt7915e-firmware kmod-usb-net-mbim kmod-usb-serial-option modemmanager luci-proto-modemmanager kmod-crypto-hw-safexcel wpad-basic-mbedtls wireguard-tools luci-proto-wireguard
 endef
 TARGET_DEVICES += arcadyan_meteor-2
 EOF
@@ -69,6 +69,9 @@ EOF
           CONFIG_TARGET_mediatek_mt6890=y
           CONFIG_TARGET_DEVICE_mediatek_mt6890_DEVICE_arcadyan_meteor-2=y
           CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_kmod-mt7915e=y
+          CONFIG_PACKAGE_kmod-mt76=y
+          CONFIG_PACKAGE_mt7915e-firmware=y
           CONFIG_PACKAGE_kmod-usb-net-mbim=y
           CONFIG_PACKAGE_kmod-usb-serial-option=y
           CONFIG_PACKAGE_modemmanager=y
