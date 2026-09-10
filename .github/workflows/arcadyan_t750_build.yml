@@ -1,4 +1,4 @@
-name: Build Pure OpenWrt for Arcadyan Meteor 2 5G CPE (MediaTek T750)
+name: Build Pure LK OpenWrt for Arcadyan Meteor 2 5G CPE (MediaTek T750)
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Build OpenWrt for Arcadyan T750
+    name: Build LK OpenWrt for Arcadyan Meteor 2
     runs-on: ubuntu-22.04
 
     steps:
@@ -24,27 +24,25 @@ jobs:
         run: |
           sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install -y build-essential clang flex bison gasm awk gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget device-tree-compiler
+          sudo -E apt-get -qq install -y build-essential clang flex bison gasm awk gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget device-tree-compiler android-sdk-libsparse-utils
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
 
-      - name: Clone MediaTek T750 OpenWrt Source
+      - name: Clone MediaTek T750 LK OpenWrt Source
         run: |
           git clone --depth 1 https://github.com/linjunyidesign/fiberhome-lg6121f-openwrt.git openwrt
 
-      - name: Inject Arcadyan DTS & Setup Device Definition
+      - name: Inject Arcadyan DTS & Configure LK Device Rules
         run: |
           cd openwrt
           
-          # 1. Copy custom Arcadyan DTS into OpenWrt DTS folder
-          if [ -f "../dts/mt6890-arcadyan-meteor-2.dts" ]; then
-            echo "Injecting custom Arcadyan Meteor 2 DTS..."
-            cp ../dts/mt6890-arcadyan-meteor-2.dts target/linux/mediatek/dts/mt6890-arcadyan-meteor-2.dts
-          fi
+          # 1. Copy user's exact committed DTS from repo dts/ folder
+          echo "Injecting user's mt6890-arcadyan-meteor-2.dts into target/linux/mediatek/dts/..."
+          cp ../dts/mt6890-arcadyan-meteor-2.dts target/linux/mediatek/dts/mt6890-arcadyan-meteor-2.dts
 
-          # 2. Append Device Definition directly to mt6890.mk Makefile
+          # 2. Append Device/arcadyan_meteor-2 definition to mt6890.mk with LK bootimage support
           MK_FILE="target/linux/mediatek/image/mt6890.mk"
-          echo "Targeting $MK_FILE for Arcadyan Meteor 2..."
+          echo "Appending Device/arcadyan_meteor-2 to $MK_FILE..."
           cat <<'EOF' >> $MK_FILE
 
 define Device/arcadyan_meteor-2
@@ -53,6 +51,8 @@ define Device/arcadyan_meteor-2
   DEVICE_DTS := mt6890-arcadyan-meteor-2
   DEVICE_DTS_DIR := ../dts
   SUPPORTED_DEVICES := arcadyan,meteor-2
+  IMAGES := boot.img ubi.img
+  IMAGE/boot.img := lk-bootimage
   DEVICE_PACKAGES := \
     kmod-mt7915e \
     kmod-mt76 \
@@ -73,7 +73,7 @@ EOF
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Generate Configuration
+      - name: Generate Target Configuration
         run: |
           cd openwrt
           cat <<EOF > .config
@@ -102,22 +102,22 @@ EOF
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
-      - name: Compile OpenWrt Firmware
+      - name: Compile LK OpenWrt Firmware
         run: |
           cd openwrt
-          echo "Building OpenWrt image specifically for Arcadyan Meteor 2..."
+          echo "Building LK boot.img & OpenWrt firmware specifically for Arcadyan Meteor 2..."
           make -j$(nproc) V=s || make -j1 V=s
 
       - name: Organize Firmware Output
         run: |
           cd openwrt
           mkdir -p bin_output
-          find bin/targets/ -type f \( -name "*arcadyan*" -o -name "*mt6890*" -o -name "*.bin" -o -name "*.img" -o -name "*.tar.gz" -o -name "manifest*" \) -exec cp {} bin_output/ \;
+          find bin/targets/ -type f \( -name "*.img" -o -name "*.bin" -o -name "*.tar.gz" -o -name "manifest*" \) -exec cp {} bin_output/ \;
           echo "Firmware files built successfully:"
           ls -la bin_output/
 
       - name: Upload OpenWrt Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: Arcadyan-Meteor2-T750-OpenWrt
+          name: Arcadyan-Meteor2-LK-OpenWrt
           path: openwrt/bin_output/
